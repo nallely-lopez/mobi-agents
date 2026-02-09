@@ -2,20 +2,20 @@
 
 AI agents system for optimizing urban transportation on Monad blockchain.
 
-🚧 **Work in Progress** - Monad Hackathon 2025
+ **Work in Progress** - Monad Hackathon 2025
 
-## 📝 About
+## About
 Autonomous agents that optimize city traffic through intelligent route planning and dynamic ride matching.
 
-## 🛠️ Tech Stack
+## Tech Stack
 - Eliza Framework
 - Monad Blockchain  
 - JavaScript/Node.js
 
-## 👩‍💻 Author
+## Author
 Nallely López - Computer Systems Engineering Student
 
-## 📊 Progress
+## Progress
 - [x] Day 1: Project setup and first driver agent
 - [ ] Day 2: Agent interaction system
 - [ ] Day 3: Multi-agent coordination
