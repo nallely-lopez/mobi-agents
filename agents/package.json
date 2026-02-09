@@ -1,15 +1,24 @@
 {
-  "name": "agents",
+  "name": "mobi-agents",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "type": "module",
+  "description": "AI agents for urban mobility - Monad Hackathon",
+  "main": "driver-agent.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node driver-agent.js",
+    "dev": "node driver-agent.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "ai",
+    "agents",
+    "monad",
+    "mobility",
+    "blockchain"
+  ],
+  "author": "Nallely López",
+  "license": "MIT",
   "dependencies": {
-    "@ai16z/eliza": "^0.1.6"
+    "@ai16z/eliza": "^0.1.5",
+    "dotenv": "^17.2.4"
   }
 }
