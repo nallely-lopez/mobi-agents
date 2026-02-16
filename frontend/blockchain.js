@@ -2,12 +2,11 @@
 
 let provider = null;
 let signer = null;
-let contract = null;
 let userAddress = null;
 
 // Configuración de Monad Testnet
 const MONAD_CONFIG = {
-    chainId: '0x279F', // 10143 en hex
+    chainId: '0x279F',
     chainName: 'Monad Testnet',
     nativeCurrency: {
         name: 'MON',
@@ -18,121 +17,105 @@ const MONAD_CONFIG = {
     blockExplorerUrls: ['https://testnet.monadexplorer.com']
 };
 
-// Dirección del contrato (actualizaremos después de deployar)
-const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // Placeholder
-
-// ABI del contrato
-const CONTRACT_ABI = [
-    "function requestRide(string memory destination) external payable",
-    "function completeRide(address driver, address passenger) external",
-    "function getDriverEarnings(address driver) external view returns (uint256)",
-    "event RideRequested(address indexed passenger, string destination, uint256 fare)",
-    "event RideCompleted(address indexed driver, address indexed passenger, uint256 fare)"
-];
-
 // Conectar wallet
 async function connectWallet() {
     try {
+        // Verificar que existe MetaMask
         if (typeof window.ethereum === 'undefined') {
-            alert('Por favor instala MetaMask para usar esta DApp');
+            alert('⚠️ Por favor instala MetaMask para conectar tu wallet\n\nVe a: https://metamask.io/download/');
             window.open('https://metamask.io/download/', '_blank');
-            return;
+            return false;
         }
 
-        // Solicitar acceso a la cuenta
+        console.log('Conectando wallet...');
+        
+        // Solicitar acceso a las cuentas
         const accounts = await window.ethereum.request({
             method: 'eth_requestAccounts'
         });
 
         userAddress = accounts[0];
+        console.log('Cuenta conectada:', userAddress);
 
-        // Crear provider y signer
+        // Crear provider con ethers.js
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
 
-        // Verificar red
+        // Verificar la red actual
         const network = await provider.getNetwork();
-        
+        console.log('Red actual:', network.chainId);
+
+        // Si no es Monad Testnet, intentar cambiar
         if (network.chainId !== 10143) {
-            // Intentar cambiar a Monad
+            console.log('Cambiando a Monad Testnet...');
             try {
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
                     params: [{ chainId: MONAD_CONFIG.chainId }]
                 });
             } catch (switchError) {
-                // Si la red no está agregada, agregarla
+                // Si la red no existe, agregarla
                 if (switchError.code === 4902) {
+                    console.log('Agregando Monad Testnet...');
                     await window.ethereum.request({
                         method: 'wallet_addEthereumChain',
                         params: [MONAD_CONFIG]
                     });
+                } else {
+                    throw switchError;
                 }
             }
         }
 
-        // Obtener balance
+        // Obtener balance después de cambiar de red
         const balance = await provider.getBalance(userAddress);
         const balanceInMON = ethers.utils.formatEther(balance);
+        console.log('Balance:', balanceInMON, 'MON');
 
         // Actualizar UI
-        document.getElementById('connectBtn').textContent = '✅ Conectado';
-        document.getElementById('connectBtn').disabled = true;
-        document.getElementById('walletInfo').style.display = 'block';
-        document.getElementById('balance').textContent = parseFloat(balanceInMON).toFixed(4);
-        document.getElementById('address').textContent = 
-            userAddress.slice(0, 6) + '...' + userAddress.slice(-4);
+        const connectBtn = document.getElementById('connectBtn');
+        const walletInfo = document.getElementById('walletInfo');
+        const balanceSpan = document.getElementById('balance');
+        const addressSpan = document.getElementById('address');
 
-        // Inicializar contrato (si está deployado)
-        if (CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000') {
-            contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        if (connectBtn) {
+            connectBtn.textContent = '✅ Conectado';
+            connectBtn.disabled = true;
+            connectBtn.style.opacity = '0.7';
         }
 
-        notifications.success('Wallet conectada', `Conectado a Monad Testnet`);
-        eventLogger.log(`🔗 Wallet conectada: ${userAddress.slice(0, 6)}...`, 'success');
+        if (walletInfo) walletInfo.style.display = 'block';
+        if (balanceSpan) balanceSpan.textContent = parseFloat(balanceInMON).toFixed(4);
+        if (addressSpan) addressSpan.textContent = userAddress.slice(0, 6) + '...' + userAddress.slice(-4);
+
+        // Notificaciones
+        if (typeof notifications !== 'undefined') {
+            notifications.success('🔗 Wallet conectada', `Balance: ${parseFloat(balanceInMON).toFixed(4)} MON`);
+        }
+
+        if (typeof eventLogger !== 'undefined') {
+            eventLogger.log(`🔗 Wallet conectada: ${userAddress.slice(0, 8)}...`, 'success');
+        }
 
         return true;
 
     } catch (error) {
         console.error('Error conectando wallet:', error);
-        notifications.warning('Error', 'No se pudo conectar la wallet');
-        return false;
-    }
-}
+        
+        let errorMsg = 'No se pudo conectar la wallet';
+        
+        if (error.code === 4001) {
+            errorMsg = 'Conexión rechazada por el usuario';
+        } else if (error.code === -32002) {
+            errorMsg = 'Ya hay una solicitud pendiente en MetaMask';
+        }
 
-// Simular pago de viaje (sin contrato por ahora)
-async function payForRide(fare, driverAddress = null) {
-    if (!signer) {
-        notifications.warning('Wallet no conectada', 'Conecta tu wallet primero');
-        return false;
-    }
+        alert('❌ ' + errorMsg + '\n\nIntenta de nuevo.');
 
-    try {
-        // Convertir fare a Wei
-        const fareInWei = ethers.utils.parseEther((fare / 100).toString()); // Convertir "centavos" a MON
+        if (typeof notifications !== 'undefined') {
+            notifications.warning('Error', errorMsg);
+        }
 
-        notifications.info('💳 Procesando pago', `${fare / 100} MON`);
-
-        // Por ahora, solo simulamos el pago
-        // Cuando tengamos el contrato, descomentar esto:
-        /*
-        const tx = await contract.requestRide("destination", {
-            value: fareInWei
-        });
-        await tx.wait();
-        */
-
-        // Simulación de espera
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        notifications.success('✅ Pago completado', `${fare / 100} MON transferidos`);
-        eventLogger.log(`💰 Pago procesado: ${fare / 100} MON`, 'success');
-
-        return true;
-
-    } catch (error) {
-        console.error('Error procesando pago:', error);
-        notifications.warning('Error en pago', 'Transacción fallida');
         return false;
     }
 }
@@ -141,19 +124,58 @@ async function payForRide(fare, driverAddress = null) {
 if (typeof window.ethereum !== 'undefined') {
     window.ethereum.on('accountsChanged', (accounts) => {
         if (accounts.length === 0) {
-            // Usuario desconectó
+            console.log('Wallet desconectada');
             userAddress = null;
-            document.getElementById('connectBtn').textContent = '🔗 Conectar Wallet';
-            document.getElementById('connectBtn').disabled = false;
-            document.getElementById('walletInfo').style.display = 'none';
-            notifications.info('Wallet desconectada', 'Reconecta para continuar');
+            
+            const connectBtn = document.getElementById('connectBtn');
+            const walletInfo = document.getElementById('walletInfo');
+            
+            if (connectBtn) {
+                connectBtn.textContent = '🔗 Conectar Wallet';
+                connectBtn.disabled = false;
+                connectBtn.style.opacity = '1';
+            }
+            
+            if (walletInfo) walletInfo.style.display = 'none';
+            
+            if (typeof notifications !== 'undefined') {
+                notifications.info('Wallet desconectada', 'Reconecta para continuar');
+            }
         } else {
-            // Cuenta cambió
+            // Cuenta cambió, recargar
+            console.log('Cuenta cambió, recargando...');
             window.location.reload();
         }
     });
 
     window.ethereum.on('chainChanged', () => {
+        console.log('Red cambió, recargando...');
         window.location.reload();
     });
 }
+
+// Función para procesar pagos (simulada por ahora)
+async function processPayment(amount) {
+    if (!signer) {
+        alert('⚠️ Conecta tu wallet primero');
+        return false;
+    }
+
+    try {
+        console.log(`Procesando pago de ${amount} MON...`);
+        
+        // Por ahora solo simular
+        // Cuando tengamos smart contract, aquí iría la transacción real
+        
+        if (typeof notifications !== 'undefined') {
+            notifications.info('💳 Pago procesado', `${amount} MON transferidos`);
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error procesando pago:', error);
+        return false;
+    }
+}
+
+console.log('✅ Blockchain.js cargado correctamente');
