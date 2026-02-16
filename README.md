@@ -2,10 +2,6 @@
 
 > **AI-powered autonomous agents optimizing urban transportation**
 
-[![Monad Hackathon](https://img.shields.io/badge/Monad-Hackathon%202025-purple)](https://monad.xyz)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Live%20Demo-success)](https://nallely-lopez.github.io/mobi-agents/)
-
 **🏆 Monad Hackathon 2025** | **Track:** Agent + World Model Reward
 
 ---
@@ -250,21 +246,12 @@ Building MobiAgents taught me:
 
 ---
 
-## 🔗 Links
-
-- **🌐 Live Demo**: [https://nallely-lopez.github.io/mobi-agents/](https://nallely-lopez.github.io/mobi-agents/)
-- **📹 Video Demo**: [Watch on Loom](YOUR_LOOM_VIDEO_LINK_HERE)
-- **💻 Source Code**: [GitHub Repository](https://github.com/nallely-lopez/mobi-agents)
-- **🏆 Hackathon**: [Monad Hackathon 2025](https://monad.xyz)
-
----
-
 ## 👩‍💻 About Me
 
 **Nallely López**
 - 🎓 Computer Systems Engineering Student (6th semester)
 - 🌐 Passionate about Web3, AI, and decentralized systems
-- 🏆 Mobil3 Hackathon Participant (Mexico City, Aug 2024)
+- 🏆 Mobil3 Hackathon Participant (Mexico City, Aug 2025)
 - 💻 Focus: JavaScript, Blockchain, Intelligent Systems
 
 **Connect:**
@@ -277,23 +264,10 @@ Building MobiAgents taught me:
 
 MIT License © 2025 Nallely López
 
-Built for **Monad Hackathon 2025**
+Built for **Monad MOLTIVERSE Hackathon 2025**
+
 
 ---
-
-## 🙏 Acknowledgments
-
-- **Monad Team** for hosting an amazing hackathon
-- **Anthropic's Claude** for development assistance
-- **Open source community** for inspiration
-
----
-
-<div align="center">
-
-### 🚀 [Try the Live Demo](https://nallely-lopez.github.io/mobi-agents/)
-
-**⭐ Star this repo if you find it interesting!**
 
 Built with ❤️ for **smarter cities** and **decentralized mobility**
 
