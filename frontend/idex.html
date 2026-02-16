@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MobiAgents - Sistema de Movilidad Urbana</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Panel lateral */
+        .sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Estadísticas */
+        .stats {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        /* Lista de agentes */
+        .agents-list {
+            margin-top: 20px;
+        }
+
+        .agent-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .agent-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .agent-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .agent-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+
+        .agent-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .agent-status {
+            margin-left: auto;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-available {
+            background: #4ade80;
+            color: #000;
+        }
+
+        .status-busy {
+            background: #f59e0b;
+            color: #000;
+        }
+
+        .agent-details {
+            font-size: 12px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        /* Mapa */
+        .map-container {
+            flex: 1;
+            position: relative;
+            background: #1a1a2e;
+        }
+
+        #cityMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Controles */
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Tráfico indicator */
+        .traffic-indicator {
+            position: absolute;
+            top: 20px;
+            left: 370px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            border-radius: 10px;
+        }
+
+        .traffic-light {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .traffic-low { background: #4ade80; }
+        .traffic-medium { background: #f59e0b; }
+        .traffic-high { background: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="header">
+                <h1>🚗 MobiAgents</h1>
+                <p>Sistema Inteligente de Movilidad Urbana</p>
+            </div>
+
+            <!-- Estadísticas generales -->
+            <div class="stats">
+                <h3>📊 Estadísticas del Sistema</h3>
+                <div class="stat-item">
+                    <span>Viajes completados:</span>
+                    <span class="stat-value" id="totalTrips">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Ingresos generados:</span>
+                    <span class="stat-value" id="totalEarnings">$0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Conductores activos:</span>
+                    <span class="stat-value" id="activeDrivers">0/0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Eficiencia:</span>
+                    <span class="stat-value" id="efficiency">100%</span>
+                </div>
+            </div>
+
+            <!-- Lista de conductores -->
+            <div class="agents-list">
+                <h3>🚗 Conductores</h3>
+                <div id="driversList"></div>
+            </div>
+
+            <!-- Lista de pasajeros -->
+            <div class="agents-list">
+                <h3>👥 Pasajeros</h3>
+                <div id="passengersList"></div>
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div class="map-container">
+            <canvas id="cityMap"></canvas>
+
+            <!-- Indicador de tráfico -->
+            <div class="traffic-indicator">
+                <span class="traffic-light" id="trafficLight"></span>
+                <span id="trafficLevel">Tráfico: BAJO</span>
+            </div>
+
+            <!-- Controles -->
+            <div class="controls">
+                <button class="btn" onclick="startSimulation()">▶️ Iniciar</button>
+                <button class="btn" onclick="pauseSimulation()">⏸️ Pausar</button>
+                <button class="btn" onclick="resetSimulation()">🔄 Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="visualization.js"></script>
+</body>
+</html>
