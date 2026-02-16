@@ -486,6 +486,18 @@
             font-size: 18px;
             box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
         }
+
+        /* Animación para pasajeros */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
     </style>
 </head>
 <body>
@@ -615,8 +627,14 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Routing Machine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
     <!-- Ethers.js para Web3 -->
     <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    
     <!-- Scripts del proyecto -->
     <script src="blockchain.js"></script>
     <script src="visualization.js"></script>

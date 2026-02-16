@@ -85,24 +85,31 @@ function getRandomPosition() {
 // Clase Driver
 class Driver {
     constructor(name, color) {
-        this.name = name;
-        this.color = color;
-        const pos = getRandomPosition();
-        this.lat = pos.lat;
-        this.lng = pos.lng;
-        this.targetLat = this.lat;
-        this.targetLng = this.lng;
-        this.available = true;
-        this.trips = 0;
-        this.earnings = 0;
-        this.rating = 5.0;
-        this.energy = 100;
-        this.speed = 0.0001;
-        this.currentPassenger = null;
-        this.marker = null;
-        this.routeLine = null;
-        
-        this.createMarker();
+    this.name = name;
+    this.color = color;
+    const pos = getRandomPosition();
+    this.lat = pos.lat;
+    this.lng = pos.lng;
+    this.targetLat = this.lat;
+    this.targetLng = this.lng;
+    this.available = true;
+    this.trips = 0;
+    this.earnings = 0;
+    this.rating = 5.0;
+    this.energy = 100;
+    this.speed = 0.0001;
+    this.currentPassenger = null;
+    this.marker = null;
+    this.routeLine = null;
+    this.routingControl = null;  // ✅ AGREGAR
+    this.routeCoordinates = null; // ✅ AGREGAR
+    this.routeIndex = 0;          // ✅ AGREGAR
+    this.routingControl = null;
+    this.routeCoordinates = null;
+    this.routeIndex = 0;
+    this.isPickingUp = false;  // ✅ AGREGAR
+    
+    this.createMarker();
     }
 
     createMarker() {
@@ -128,30 +135,129 @@ class Driver {
     }
 
     moveTo(lat, lng, passenger) {
-        this.targetLat = lat;
-        this.targetLng = lng;
-        this.available = false;
-        this.currentPassenger = passenger;
+    this.targetLat = lat;
+    this.targetLng = lng;
+    this.available = false;
+    this.currentPassenger = passenger;
+    this.isPickingUp = true; // ✅ Nueva bandera
 
-        if (this.routeLine) {
-            map.removeLayer(this.routeLine);
-        }
-        
-        this.routeLine = L.polyline([
-            [this.lat, this.lng],
-            [lat, lng]
-        ], {
-            color: this.color,
-            weight: 3,
-            opacity: 0.7,
-            dashArray: '10, 10'
-        }).addTo(map);
+    // Remover ruta anterior
+    if (this.routingControl) {
+        map.removeControl(this.routingControl);
+    }
 
-        notifications.info(`🚗 ${this.name} en camino`, `Recogiendo a ${passenger.name}`);
-        eventLogger.log(`🚗 ${this.name} asignado a ${passenger.name}`, 'success');
+    // FASE 1: Ir a RECOGER al pasajero
+    this.routingControl = L.Routing.control({
+        waypoints: [
+            L.latLng(this.lat, this.lng),              // Posición actual del conductor
+            L.latLng(passenger.lat, passenger.lng)      // Posición del pasajero
+        ],
+        routeWhileDragging: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: false,
+        showAlternatives: false,
+        lineOptions: {
+            styles: [{ 
+                color: this.color, 
+                opacity: 0.8, 
+                weight: 4,
+                dashArray: '10, 10'
+            }]
+        },
+        createMarker: () => null,
+        show: false
+    }).addTo(map);
+
+    this.routingControl.on('routesfound', (e) => {
+        const route = e.routes[0];
+        this.routeCoordinates = route.coordinates;
+        this.routeIndex = 0;
+        console.log(`${this.name}: Ruta de pickup calculada (${this.routeCoordinates.length} puntos)`);
+    });
+
+    notifications.info(`🚗 ${this.name} en camino`, `Recogiendo a ${passenger.name}`);
+    eventLogger.log(`🚗 ${this.name} va a recoger a ${passenger.name}`, 'success');
     }
 
     update() {
+    if (this.routeCoordinates && this.routeCoordinates.length > 0) {
+        if (this.routeIndex < this.routeCoordinates.length - 1) {
+            const nextPoint = this.routeCoordinates[this.routeIndex + 1];
+            
+            const dlat = nextPoint.lat - this.lat;
+            const dlng = nextPoint.lng - this.lng;
+            const distance = Math.sqrt(dlat * dlat + dlng * dlng);
+
+            if (distance < 0.0001) {
+                this.routeIndex++;
+            } else {
+                this.lat += (dlat / distance) * this.speed;
+                this.lng += (dlng / distance) * this.speed;
+            }
+
+            this.marker.setLatLng([this.lat, this.lng]);
+        } else {
+            // Llegamos al punto
+            if (this.isPickingUp) {
+                // ✅ FASE 1 COMPLETA: Recogimos al pasajero
+                console.log(`${this.name}: Pasajero recogido, yendo al destino`);
+                this.isPickingUp = false;
+                
+                // Remover marcador del pasajero del mapa
+                if (this.currentPassenger && this.currentPassenger.marker) {
+                    map.removeLayer(this.currentPassenger.marker);
+                }
+                
+                // FASE 2: Ir al destino final
+                if (this.routingControl) {
+                    map.removeControl(this.routingControl);
+                }
+                
+                this.routingControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(this.lat, this.lng),                           // Posición actual (donde recogimos)
+                        L.latLng(this.targetLat, this.targetLng)                // Destino final
+                    ],
+                    routeWhileDragging: false,
+                    addWaypoints: false,
+                    draggableWaypoints: false,
+                    fitSelectedRoutes: false,
+                    showAlternatives: false,
+                    lineOptions: {
+                        styles: [{ 
+                            color: this.color, 
+                            opacity: 0.8, 
+                            weight: 4,
+                            dashArray: '5, 5'
+                        }]
+                    },
+                    createMarker: () => null,
+                    show: false
+                }).addTo(map);
+
+                this.routingControl.on('routesfound', (e) => {
+                    const route = e.routes[0];
+                    this.routeCoordinates = route.coordinates;
+                    this.routeIndex = 0;
+                    console.log(`${this.name}: Ruta al destino calculada (${this.routeCoordinates.length} puntos)`);
+                });
+                
+                notifications.info(`👤 Pasajero a bordo`, `${this.name} va al destino`);
+                eventLogger.log(`👤 ${this.name} recogió al pasajero, yendo al destino`, 'info');
+                
+            } else {
+                // ✅ FASE 2 COMPLETA: Llegamos al destino
+                this.lat = this.targetLat;
+                this.lng = this.targetLng;
+                
+                if (!this.available && this.currentPassenger) {
+                    this.completeTrip();
+                }
+            }
+        }
+    } else {
+        // Fallback
         const dlat = this.targetLat - this.lat;
         const dlng = this.targetLng - this.lng;
         const distance = Math.sqrt(dlat * dlat + dlng * dlng);
@@ -159,60 +265,58 @@ class Driver {
         if (distance > 0.0001) {
             this.lat += (dlat / distance) * this.speed;
             this.lng += (dlng / distance) * this.speed;
-            
             this.marker.setLatLng([this.lat, this.lng]);
-            
-            if (this.routeLine) {
-                this.routeLine.setLatLngs([
-                    [this.lat, this.lng],
-                    [this.targetLat, this.targetLng]
-                ]);
-            }
-        } else {
-            this.lat = this.targetLat;
-            this.lng = this.targetLng;
-            
-            if (!this.available && this.currentPassenger) {
-                this.completeTrip();
-            }
         }
+    }
 
-        this.marker.setPopupContent(`
-            <b>${this.name}</b><br>
-            ${this.available ? '✅ Disponible' : '🚗 En viaje'}<br>
-            ⭐ ${this.rating.toFixed(1)}<br>
-            📊 ${this.trips} viajes<br>
-            💰 $${Math.round(this.earnings)}<br>
-            ⚡ ${this.energy}%
-        `);
+    this.marker.setPopupContent(`
+        <b>${this.name}</b><br>
+        ${this.available ? '✅ Disponible' : (this.isPickingUp ? '🚗 Recogiendo...' : '👤 Con pasajero')}<br>
+        ⭐ ${this.rating.toFixed(1)}<br>
+        📊 ${this.trips} viajes<br>
+        💰 $${Math.round(this.earnings)}<br>
+        ⚡ ${this.energy}%
+    `);
     }
 
     completeTrip() {
-        this.trips++;
-        const fare = 50 + Math.random() * 150;
-        this.earnings += Math.round(fare);
-        this.energy = Math.max(0, this.energy - 10);
-        
-        const newRating = 3.5 + Math.random() * 1.5;
-        this.rating = ((this.rating * (this.trips - 1)) + newRating) / this.trips;
-        
-        this.available = true;
-        
-        if (this.routeLine) {
-            map.removeLayer(this.routeLine);
-            this.routeLine = null;
-        }
+    this.trips++;
+    const fare = 50 + Math.random() * 150;
+    this.earnings += Math.round(fare);
+    this.energy = Math.max(0, this.energy - 10);
+    
+    const newRating = 3.5 + Math.random() * 1.5;
+    this.rating = ((this.rating * (this.trips - 1)) + newRating) / this.trips;
+    
+    this.available = true;
+    
+    // Limpiar ruta
+    if (this.routingControl) {
+        map.removeLayer(this.routingControl);
+        this.routingControl = null;
+    }
+    
+    this.routeCoordinates = null;
+    this.routeIndex = 0;
+    this.isPickingUp = false;
 
-        notifications.success('✅ Viaje completado', `${this.name} ganó $${Math.round(fare)}`);
-        eventLogger.log(`✅ ${this.name} completó viaje • $${Math.round(fare)}`, 'success');
-        
-        if (this.currentPassenger && this.currentPassenger.marker) {
-            map.removeLayer(this.currentPassenger.marker);
-        }
-        
-        this.currentPassenger = null;
-        updateStats();
-        updateUI();
+    notifications.success('✅ Viaje completado', `${this.name} ganó $${Math.round(fare)}`);
+    eventLogger.log(`✅ ${this.name} completó viaje • $${Math.round(fare)}`, 'success');
+    
+    // Remover marcador del pasajero
+    if (this.currentPassenger && this.currentPassenger.marker) {
+        map.removeLayer(this.currentPassenger.marker);
+    }
+    
+    // ✅ Remover marcador de destino
+    if (this.currentPassenger && this.currentPassenger.destinationMarker) {
+        map.removeLayer(this.currentPassenger.destinationMarker);
+        this.currentPassenger.destinationMarker = null;
+    }
+    
+    this.currentPassenger = null;
+    updateStats();
+    updateUI();
     }
 }
 
@@ -233,19 +337,34 @@ class Passenger {
     }
 
     createMarker() {
-        if (!map) return;
-        
-        const icon = L.divIcon({
-            className: 'passenger-marker',
-            html: '<div style="background: #60a5fa; width: 35px; height: 35px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 18px;">👤</div>',
-            iconSize: [35, 35]
-        });
+    if (!map) return;
+    
+    const icon = L.divIcon({
+        className: 'passenger-marker',
+        html: '<div style="background: #60a5fa; width: 35px; height: 35px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 18px; animation: pulse 2s infinite;">👤</div>',
+        iconSize: [35, 35]
+    });
 
-        this.marker = L.marker([this.lat, this.lng], { icon });
-        this.marker.bindPopup(`<b>${this.name}</b><br>Esperando viaje...`);
-        this.marker.addTo(map);
-        
-        passengerMarkers[this.name] = this.marker;
+    this.marker = L.marker([this.lat, this.lng], { icon });
+    
+    // Calcular distancia al destino
+    const dlat = this.destLat - this.lat;
+    const dlng = this.destLng - this.lng;
+    const distance = Math.sqrt(dlat * dlat + dlng * dlng);
+    const distanceKm = (distance * 111).toFixed(1); // Aproximación a km
+    
+    this.marker.bindPopup(`
+        <b>👤 ${this.name}</b><br>
+        📍 Ubicación actual<br>
+        🎯 Destino: ${distanceKm} km<br>
+        ⏱️ Esperando conductor...
+    `);
+    this.marker.addTo(map);
+    
+    passengerMarkers[this.name] = this.marker;
+    
+    // Agregar propiedad para el marcador de destino
+    this.destinationMarker = null;
     }
 }
 
@@ -400,6 +519,7 @@ function updateStats() {
 }
 
 // Asignar viaje
+// Asignar viaje con IA
 function assignRide() {
     const autoAssign = document.getElementById('autoAssign');
     if (!autoAssign || !autoAssign.checked) return;
@@ -408,23 +528,109 @@ function assignRide() {
     const waitingPassengers = passengers.filter(p => p.waiting);
 
     if (availableDrivers.length > 0 && waitingPassengers.length > 0) {
-        let bestDriver = availableDrivers[0];
-        let bestDistance = Infinity;
         const passenger = waitingPassengers[0];
-
+        
+        // 🧠 ALGORITMO DE IA: Evaluar cada conductor
+        let bestDriver = null;
+        let bestScore = -Infinity;
+        
+        console.log(`\n🤖 Evaluando conductores para ${passenger.name}...`);
+        
         availableDrivers.forEach(driver => {
-            const dlat = passenger.destLat - driver.lat;
-            const dlng = passenger.destLng - driver.lng;
-            const distance = Math.sqrt(dlat * dlat + dlng * dlng);
+            // Calcular distancia al pasajero
+            const dlat = passenger.lat - driver.lat;
+            const dlng = passenger.lng - driver.lng;
+            const distanceToPassenger = Math.sqrt(dlat * dlat + dlng * dlng);
             
-            if (distance < bestDistance) {
-                bestDistance = distance;
+            // Calcular distancia total del viaje
+            const tripDlat = passenger.destLat - passenger.lat;
+            const tripDlng = passenger.destLng - passenger.lng;
+            const tripDistance = Math.sqrt(tripDlat * tripDlat + tripDlng * tripDlng);
+            
+            let score = 0;
+            
+            // Factor 1: Distancia al pasajero (MÁS IMPORTANTE)
+            if (distanceToPassenger < 0.005) {
+                score += 50; // Muy cerca
+            } else if (distanceToPassenger < 0.01) {
+                score += 30; // Cerca
+            } else if (distanceToPassenger < 0.02) {
+                score += 10; // Moderado
+            } else {
+                score -= 20; // Lejos
+            }
+            
+            // Factor 2: Energía del conductor
+            if (driver.energy > 70) {
+                score += 20;
+            } else if (driver.energy > 40) {
+                score += 10;
+            } else {
+                score -= 10;
+            }
+            
+            // Factor 3: Rating del conductor
+            if (driver.rating >= 4.8) {
+                score += 15;
+            } else if (driver.rating >= 4.5) {
+                score += 10;
+            }
+            
+            // Factor 4: Tráfico (penalizar si hay congestión)
+            const trafficPenalty = {
+                'low': 10,
+                'medium': 0,
+                'high': -15
+            };
+            score += trafficPenalty[trafficSystem.level];
+            
+            // Factor 5: Eficiencia del viaje
+            const efficiency = tripDistance / (distanceToPassenger + 0.001);
+            if (efficiency > 2) {
+                score += 10; // Viaje largo, vale la pena
+            }
+            
+            console.log(`  ${driver.name}: Score=${score} (Dist=${distanceToPassenger.toFixed(4)}, Energy=${driver.energy}%, Rating=${driver.rating.toFixed(1)})`);
+            
+            if (score > bestScore) {
+                bestScore = score;
                 bestDriver = driver;
             }
         });
+        
+        if (bestDriver) {
+            console.log(`✅ Mejor match: ${bestDriver.name} (Score: ${bestScore})\n`);
+            
+            // Asignar viaje
+            bestDriver.moveTo(passenger.destLat, passenger.destLng, passenger);
+            passenger.waiting = false;
+            
+            // Mostrar destino en el mapa
+            showDestinationMarker(passenger);
+            
+            eventLogger.log(
+                `🤖 IA seleccionó a ${bestDriver.name} (Score: ${bestScore})`,
+                'success'
+            );
+        }
+    }
+}
 
-        bestDriver.moveTo(passenger.destLat, passenger.destLng, passenger);
-        passenger.waiting = false;
+// Mostrar marcador de destino del pasajero
+function showDestinationMarker(passenger) {
+    if (!passenger.destinationMarker) {
+        const icon = L.divIcon({
+            className: 'destination-marker',
+            html: '<div style="background: #ef4444; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 3px 5px rgba(0,0,0,0.4);">🎯</div>',
+            iconSize: [30, 30]
+        });
+
+        passenger.destinationMarker = L.marker([passenger.destLat, passenger.destLng], { icon });
+        passenger.destinationMarker.bindPopup(`
+            <b>🎯 Destino de ${passenger.name}</b><br>
+            Esperando llegada...
+        `);
+        passenger.destinationMarker.addTo(map);
     }
 }
 
